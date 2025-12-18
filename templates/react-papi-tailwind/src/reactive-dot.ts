@@ -3,6 +3,7 @@ import { defineConfig } from "@reactive-dot/core";
 import { createLightClientProvider } from "@reactive-dot/core/providers/light-client.js";
 import { InjectedWalletProvider } from "@reactive-dot/core/wallets.js";
 import { LedgerWallet } from "@reactive-dot/wallet-ledger";
+import { PolkadotVaultWallet } from "@reactive-dot/wallet-polkadot-vault";
 // import { WalletConnect } from "@reactive-dot/wallet-walletconnect";
 import { registerDotConnect } from "dot-connect";
 
@@ -36,6 +37,7 @@ export const config = defineConfig({
   wallets: [
     new InjectedWalletProvider(),
     new LedgerWallet(),
+    new PolkadotVaultWallet(),
     // Uncomment to configure WalletConnect.
     //new WalletConnect({
     //  projectId: "WALLET_CONNECT_PROJECT_ID",
