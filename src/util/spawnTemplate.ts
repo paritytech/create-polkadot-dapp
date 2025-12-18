@@ -30,11 +30,26 @@ async function copyTemplate(dappData: DappData, targetDir: string, templatesDir:
   console.log(`${c.primary("Copying the template")} ${c.accent(dappData.template)}${c.primary("...")}`);
 
   try {
-    await fs.cp(path.join(templatesDir, dappData.template), targetDir, {
-      recursive: true,
-      errorOnExist: true,
-      force: false,
-    });
+    if (dappData.config.gitUrl) {
+      const tmpDir = targetDir + "-tmp";
+      await spawnAndWait("git", ["clone", "--depth", "1", dappData.config.gitUrl, tmpDir], { cwd: process.cwd() });
+      if (dappData.config.gitRef) {
+        await spawnAndWait("git", ["checkout", dappData.config.gitRef], { cwd: tmpDir });
+      }
+      const sourceDir = dappData.config.gitSubdir ? path.join(tmpDir, dappData.config.gitSubdir) : tmpDir;
+      await fs.cp(sourceDir, targetDir, {
+        recursive: true,
+        errorOnExist: true,
+        force: false,
+      });
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    } else {
+      await fs.cp(path.join(templatesDir, dappData.template), targetDir, {
+        recursive: true,
+        errorOnExist: true,
+        force: false,
+      });
+    }
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ERR_FS_CP_EEXIST") {
       console.error(`Error: directory ${dappData.name} already exists`);
@@ -48,14 +63,18 @@ async function updateFiles(dappData: DappData, targetDir: string): Promise<void>
 
   for (const root of dappData.config.npmRoots) {
     const pkgJsonPath = path.join(targetDir, root, "package.json");
-    const pkgJsonContent = JSON.parse(await fs.readFile(pkgJsonPath, "utf8")) as PackageJson;
-
-    pkgJsonContent.name = dappData.name;
-
-    await fs.writeFile(pkgJsonPath, JSON.stringify(pkgJsonContent, null, 2));
+    try {
+      const pkgJsonContent = JSON.parse(await fs.readFile(pkgJsonPath, "utf8")) as PackageJson;
+      pkgJsonContent.name = dappData.name;
+      await fs.writeFile(pkgJsonPath, JSON.stringify(pkgJsonContent, null, 2));
+    } catch {
+      console.warn(c.secondary(`Warning: could not update package.json at ${pkgJsonPath}`));
+    }
   }
 
-  await fs.rename(path.join(targetDir, "gitignore"), path.join(targetDir, ".gitignore"));
+  try {
+    await fs.rename(path.join(targetDir, "gitignore"), path.join(targetDir, ".gitignore"));
+  } catch {}
 }
 
 async function installDeps(targetDir: string, dappData: DappData): Promise<void> {
